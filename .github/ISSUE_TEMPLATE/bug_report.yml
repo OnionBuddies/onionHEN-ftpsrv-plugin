@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible template build or runtime failure
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include proprietary SDK files, keys, credentials, console
+        identifiers, or decrypted system binaries. Report security issues
+        privately through the Security tab.
+  - type: input
+    id: revision
+    attributes:
+      label: Boilerplate revision
+      placeholder: Commit SHA
+    validations:
+      required: true
+  - type: input
+    id: sdk
+    attributes:
+      label: Plugin SDK revision
+      placeholder: Commit SHA or the default pinned revision
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Build environment
+      description: OS, CMake, Python, and PS5 Payload SDK versions
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste the smallest useful sanitized output
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reproduced this with the latest default branch.
+          required: true
+        - label: I searched existing issues.
+          required: true
+        - label: This report contains no secrets or proprietary files.
+          required: true
+

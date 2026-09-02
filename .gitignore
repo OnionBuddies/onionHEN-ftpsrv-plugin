@@ -1,0 +1,11 @@
+/build/
+/build-*/
+/.cache/
+/.idea/
+/.vscode/
+.DS_Store
+*.elf
+*.log
+__pycache__/
+*.py[cod]
+
