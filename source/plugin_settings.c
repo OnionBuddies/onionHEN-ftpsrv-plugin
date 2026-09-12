@@ -10,7 +10,7 @@
 
 void plugin_settings_defaults(plugin_settings *settings) {
     if (!settings) return;
-    settings->enabled = 0;
+    settings->enabled = 1;
     settings->port = PLUGIN_DEFAULT_PORT;
 }
 

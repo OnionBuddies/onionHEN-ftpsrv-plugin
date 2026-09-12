@@ -17,15 +17,15 @@ descriptor，管理进程生命周期，并在插件停止后自动清理它注�
 
 ## 功能
 
-- 动态注册 OnionHEN 设置页，提供启用、TCP 端口和带确认的重启操作
+- 单页 OnionHEN 设置界面，提供启用、TCP 端口和带确认的重启操作，无需进入子页面
+- 跟随 PS5 系统语言（`zh-Hans` / `en`）实时切换中英双语，无需重启插件
 - 持久保存 `enabled` 和 `port` 配置
 - 通过 OnionHEN 插件管理器支持启动、停止、重载、删除和休息模式恢复
 - 保留上游 `ftpsrv` 的 `KILL`、`SELF`、`SCHK`、`MTRW`、`AUTHID` 等命令
   （具体取决于固件支持）
 - 不使用压缩包或自定义容器，插件元数据直接嵌入 ELF
 
-插件进程会自动启动，以便发布动态设置页；FTP 监听器默认关闭，启用后默认监听
-TCP `1337`。
+插件进程会自动启动，以便发布动态设置页；FTP 监听器默认开启，监听 TCP `1337`。
 
 ## 环境要求
 
@@ -42,7 +42,7 @@ cmake --preset ps5
 cmake --build --preset ps5
 ```
 
-产物为 `build-ps5/bin/ftpsrv.elf`。构建流程会验证 ELF 中的插件 ID
+产物为 `build-ps5/bin/FTPS00001.elf`。构建流程会验证 ELF 中的插件 ID
 `FTPS00001`、版本 `1.00` 和 SDK descriptor。
 
 开发 SDK 时可直接使用本地源码：
@@ -85,8 +85,9 @@ OnionHEN 会发现并校验最终的 `.elf`，然后启动插件。进入 **★ 
 ```text
 OnionHEN plugin manager
   -> 可信 SDK session
-  -> source/main.c                  生命周期与事件循环
-     -> source/plugin_ui.c          UI document 与动作校验
+  -> source/main.c                  生命周期、事件循环与语言轮询
+     -> source/ftp_i18n.c           双语文案与系统语言跟踪
+     -> source/plugin_ui.c          单页 UI document 与动作校验
      -> source/plugin_settings.c    原子本地持久化
      -> source/ftp_service.c        同步的监听器生命周期
         -> third_party/ftpsrv       FTP 协议实现

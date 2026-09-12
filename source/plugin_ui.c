@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ftp_i18n.h"
 #include "plugin_config.h"
 
 #define CONTRIBUTION_ID "settings"
@@ -26,31 +27,31 @@ static onion_ui_node_desc_v1 make_node(uint32_t kind, const char *id,
 
 static onion_status add_nodes(onion_ui_document *document,
                               const plugin_settings *settings) {
+    /* Root page: directly hosts all FTP settings */
     onion_ui_node_desc_v1 node =
-        make_node(ONION_UI_NODE_PAGE, "main", NULL, PLUGIN_NAME);
+        make_node(ONION_UI_NODE_PAGE, "main", NULL, ftp_tr("title"));
     onion_status status = onion_ui_document_add_node(document, &node);
     if (status != ONION_OK) return status;
 
-    node = make_node(ONION_UI_NODE_LABEL, "about", "main", "PS5 FTP server");
-    snprintf(node.description, sizeof(node.description),
-             "Managed by OnionHEN plugin %s", PLUGIN_ID);
+    node = make_node(ONION_UI_NODE_LABEL, "about", "main", ftp_tr("about_title"));
+    snprintf(node.description, sizeof(node.description), "%s",
+             ftp_tr("about_desc"));
     status = onion_ui_document_add_node(document, &node);
     if (status != ONION_OK) return status;
 
-    node = make_node(ONION_UI_NODE_GROUP, "server", "main", "Server");
-    status = onion_ui_document_add_node(document, &node);
-    if (status != ONION_OK) return status;
-
-    node = make_node(ONION_UI_NODE_TOGGLE, "enabled", "server", "Enabled");
+    node = make_node(ONION_UI_NODE_TOGGLE, "enabled", "main",
+                     ftp_tr("enabled_title"));
     node.value_type = ONION_UI_VALUE_BOOL;
     node.binding = ONION_UI_BINDING_EVENT;
     snprintf(node.binding_key, sizeof(node.binding_key), "enabled_changed");
     snprintf(node.value, sizeof(node.value), "%s",
              settings->enabled ? "true" : "false");
+    snprintf(node.description, sizeof(node.description), "%s",
+             ftp_tr("enabled_desc"));
     status = onion_ui_document_add_node(document, &node);
     if (status != ONION_OK) return status;
 
-    node = make_node(ONION_UI_NODE_INPUT, "port", "server", "TCP port");
+    node = make_node(ONION_UI_NODE_INPUT, "port", "main", ftp_tr("port_title"));
     node.value_type = ONION_UI_VALUE_INT;
     node.binding = ONION_UI_BINDING_EVENT;
     node.min_value = 1;
@@ -59,14 +60,18 @@ static onion_status add_nodes(onion_ui_document *document,
     node.max_length = 5;
     snprintf(node.binding_key, sizeof(node.binding_key), "port_changed");
     snprintf(node.value, sizeof(node.value), "%u", (unsigned)settings->port);
+    snprintf(node.description, sizeof(node.description), "%s",
+             ftp_tr("port_desc"));
     status = onion_ui_document_add_node(document, &node);
     if (status != ONION_OK) return status;
 
-    node = make_node(
-        ONION_UI_NODE_ACTION, "restart", "server", "Restart server");
+    node = make_node(ONION_UI_NODE_ACTION, "restart", "main",
+                     ftp_tr("restart_title"));
     node.flags = ONION_UI_NODE_FLAG_CONFIRM;
     node.binding = ONION_UI_BINDING_EVENT;
     snprintf(node.binding_key, sizeof(node.binding_key), "restart_requested");
+    snprintf(node.description, sizeof(node.description), "%s",
+             ftp_tr("restart_desc"));
     return onion_ui_document_add_node(document, &node);
 }
 
@@ -83,9 +88,10 @@ onion_status plugin_ui_create(const plugin_settings *settings,
              PLUGIN_ID);
     snprintf(description.contribution_id,
              sizeof(description.contribution_id), "%s", CONTRIBUTION_ID);
-    snprintf(description.title, sizeof(description.title), "%s", PLUGIN_NAME);
-    snprintf(description.description, sizeof(description.description),
-             "Configure the OnionHEN FTP server");
+    snprintf(description.title, sizeof(description.title), "%s",
+             ftp_tr("title"));
+    snprintf(description.description, sizeof(description.description), "%s",
+             ftp_tr("about_desc"));
     snprintf(description.root_page_id, sizeof(description.root_page_id), "main");
 
     onion_status status = onion_ui_document_create(&description, out_document);
@@ -158,12 +164,14 @@ onion_status plugin_ui_decode_action(onion_ui_handle handle,
 
 onion_status plugin_ui_set_enabled(const onion_host_services_v1 *services,
                                    onion_ui_handle handle, int enabled) {
+    if (!services || handle == 0) return ONION_E_INVALID_ARGUMENT;
     return onion_ui_set_value(services, handle, "enabled", ONION_UI_VALUE_BOOL,
                               enabled ? "true" : "false");
 }
 
 onion_status plugin_ui_set_port(const onion_host_services_v1 *services,
                                 onion_ui_handle handle, uint16_t port) {
+    if (!services || handle == 0) return ONION_E_INVALID_ARGUMENT;
     char value[8];
     snprintf(value, sizeof(value), "%u", (unsigned)port);
     return onion_ui_set_value(

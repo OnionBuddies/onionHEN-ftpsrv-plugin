@@ -65,6 +65,7 @@ onion_add_plugin(
     VERSION ${ONION_PLUGIN_VERSION}
     SOURCES
         source/main.c
+        source/ftp_i18n.c
         source/ftp_service.c
         source/plugin_descriptor.c
         source/plugin_settings.c
@@ -76,9 +77,12 @@ onion_add_plugin(
         "${FTPSRV_SOURCE_DIR}"
     LIBRARIES
         SceLibcInternal
+        SceSystemService
         SceNotification
         kernel_sys)
 
+set_target_properties(${ONION_PLUGIN_TARGET} PROPERTIES
+    OUTPUT_NAME "${ONION_PLUGIN_ID}.elf")
 target_compile_definitions(${ONION_PLUGIN_TARGET} PRIVATE
     VERSION_TAG="OnionHEN FTP plugin ${ONION_PLUGIN_VERSION}")
 set_source_files_properties(${FTPSRV_SOURCES} PROPERTIES

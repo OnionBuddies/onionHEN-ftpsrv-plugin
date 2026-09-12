@@ -18,8 +18,10 @@ owns its process lifecycle, and removes its UI contribution when it stops.
 
 ## Features
 
-- Dynamic OnionHEN settings page with enable, TCP port, and confirmed restart
-  controls
+- Flat single-page OnionHEN settings UI with enable, TCP port, and confirmed
+  restart controls — no nested groups or extra page clicks
+- Dynamic bilingual i18n that tracks the PS5 system language (`zh-Hans` / `en`)
+  without restarting the plugin
 - Persistent `enabled` and `port` settings
 - Graceful start, stop, reload, deletion, and rest-mode process recovery through
   the OnionHEN plugin manager
@@ -28,8 +30,7 @@ owns its process lifecycle, and removes its UI contribution when it stops.
 - No package container or extraction step; metadata is embedded in the ELF
 
 The plugin process starts automatically so it can publish its settings page.
-The FTP listener itself is disabled by default and listens on TCP `1337` when
-enabled.
+The FTP listener is enabled by default and listens on TCP `1337`.
 
 ## Requirements
 
@@ -46,7 +47,7 @@ cmake --preset ps5
 cmake --build --preset ps5
 ```
 
-The output is `build-ps5/bin/ftpsrv.elf`. The build validates that the ELF
+The output is `build-ps5/bin/FTPS00001.elf`. The build validates that the ELF
 contains plugin ID `FTPS00001`, version `1.00`, and a valid SDK descriptor.
 
 To build against a local SDK checkout:
@@ -91,8 +92,9 @@ Only one service can bind a TCP port. If another FTP payload already uses
 ```text
 OnionHEN plugin manager
   -> trusted SDK session
-  -> source/main.c                  lifecycle and event loop
-     -> source/plugin_ui.c          UI document and action validation
+  -> source/main.c                  lifecycle, event loop, language polling
+     -> source/ftp_i18n.c           bilingual strings and system language tracking
+     -> source/plugin_ui.c          single-page UI document and action validation
      -> source/plugin_settings.c    atomic local persistence
      -> source/ftp_service.c        synchronized listener lifecycle
         -> third_party/ftpsrv       FTP protocol implementation

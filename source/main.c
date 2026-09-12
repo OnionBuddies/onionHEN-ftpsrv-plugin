@@ -12,6 +12,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "ftp_i18n.h"
 #include "ftp_service.h"
 #include "plugin_config.h"
 #include "plugin_settings.h"
@@ -187,7 +188,29 @@ static onion_status apply_action(plugin_app *app,
 }
 
 static int run_event_loop(plugin_app *app) {
+    unsigned int language_refresh_ticks = 0;
     while (running) {
+        if (++language_refresh_ticks >= 20) { /* every ~2 seconds (20 * 100ms) */
+            language_refresh_ticks = 0;
+            if (ftp_i18n_refresh()) {
+                log_message(app, "[%s] system language changed, updating UI\n",
+                            PLUGIN_ID);
+                if (app->ui_handle != 0) {
+                    (void)onion_ui_unregister(&app->services, app->ui_handle);
+                    app->ui_handle = 0;
+                }
+                if (app->document) {
+                    onion_ui_document_destroy(app->document);
+                    app->document = NULL;
+                }
+                if (plugin_ui_create(&app->settings, &app->document) ==
+                    ONION_OK) {
+                    (void)onion_ui_register(
+                        &app->services, app->document, &app->ui_handle);
+                }
+            }
+        }
+
         onion_ui_event_v1 event;
         onion_status status = onion_client_poll_ui_event(&app->client, &event);
         if (status == ONION_E_NOT_FOUND) {
@@ -223,7 +246,7 @@ int main(void) {
     signal(SIGINT, request_stop);
     signal(SIGTERM, request_stop);
     signal(SIGPIPE, SIG_IGN);
-    (void)syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
+    (void)syscall(SYS_thr_set_name, -1, "FTPS00001.elf");
     log_message(&app, "[%s] starting %s %s\n", PLUGIN_ID, PLUGIN_NAME,
                 PLUGIN_VERSION);
 
