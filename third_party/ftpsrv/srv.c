@@ -31,7 +31,6 @@ along with this program; see the file COPYING. If not, see
 
 #include "cmd.h"
 #include "io.h"
-#include "kstuff_autopause.h"
 #include "log.h"
 #include "notify.h"
 #include "srv.h"
@@ -46,13 +45,13 @@ static _Atomic int ftp_server_fd = -1;
 #define FTP_MAX_LINE 8192
 #endif
 
+
 /**
  * Map names of commands to function entry points.
  **/
 typedef struct ftp_command {
   const char       *name;
   ftp_command_fn_t *func;
-  int requires_kstuff;
 } ftp_command_t;
 
 /**
@@ -71,77 +70,76 @@ typedef struct ftp_reader {
  * Lookup table for FTP commands.
  **/
 static ftp_command_t commands[] = {
-  {"APPE", ftp_cmd_APPE, 0},
-  {"CDUP", ftp_cmd_CDUP, 0},
-  {"CWD",  ftp_cmd_CWD, 0},
-  {"DELE", ftp_cmd_DELE, 0},
-  {"EPRT", ftp_cmd_EPRT, 0},
-  {"EPSV", ftp_cmd_EPSV, 0},
-  {"LIST", ftp_cmd_LIST, 0},
-  {"MKD",  ftp_cmd_MKD, 0},
-  {"MLSD", ftp_cmd_MLSD, 0},
-  {"MLST", ftp_cmd_MLST, 0},
-  {"NLST", ftp_cmd_NLST, 0},
-  {"NOOP", ftp_cmd_NOOP, 0},
-  {"PASS", ftp_cmd_PASS, 0},
-  {"PASV", ftp_cmd_PASV, 0},
-  {"PORT", ftp_cmd_PORT, 0},
-  {"PWD",  ftp_cmd_PWD, 0},
-  {"QUIT", ftp_cmd_QUIT, 0},
-  {"REST", ftp_cmd_REST, 0},
-  {"RETR", ftp_cmd_RETR, 0},
-  {"RMD",  ftp_cmd_RMD, 0},
-  {"RMDA", ftp_cmd_RMDA, 0},
-  {"RNFR", ftp_cmd_RNFR, 0},
-  {"RNTO", ftp_cmd_RNTO, 0},
-  {"SIZE", ftp_cmd_SIZE, 0},
-  {"DSIZ", ftp_cmd_DSIZ, 0},
-  {"STOR", ftp_cmd_STOR, 0},
-  {"SYST", ftp_cmd_SYST, 0},
-  {"TYPE", ftp_cmd_TYPE, 0},
-  {"USER", ftp_cmd_USER, 0},
-  {"ABOR", ftp_cmd_ABOR, 0},
-  {"ALLO", ftp_cmd_ALLO, 0},
-  {"AVBL", ftp_cmd_AVBL, 0},
-  {"FEAT", ftp_cmd_FEAT, 0},
-  {"HELP", ftp_cmd_HELP, 0},
-  {"MDTM", ftp_cmd_MDTM, 0},
-  {"MODE", ftp_cmd_MODE, 0},
-  {"OPTS", ftp_cmd_OPTS, 0},
-  {"STAT", ftp_cmd_STAT, 0},
-  {"STRU", ftp_cmd_STRU, 0},
+  {"APPE", ftp_cmd_APPE},
+  {"CDUP", ftp_cmd_CDUP},
+  {"CWD",  ftp_cmd_CWD},
+  {"DELE", ftp_cmd_DELE},
+  {"EPRT", ftp_cmd_EPRT},
+  {"EPSV", ftp_cmd_EPSV},
+  {"LIST", ftp_cmd_LIST},
+  {"MKD",  ftp_cmd_MKD},
+  {"MLSD", ftp_cmd_MLSD},
+  {"MLST", ftp_cmd_MLST},
+  {"NLST", ftp_cmd_NLST},
+  {"NOOP", ftp_cmd_NOOP},
+  {"PASS", ftp_cmd_PASS},
+  {"PASV", ftp_cmd_PASV},
+  {"PORT", ftp_cmd_PORT},
+  {"PWD",  ftp_cmd_PWD},
+  {"QUIT", ftp_cmd_QUIT},
+  {"REST", ftp_cmd_REST},
+  {"RETR", ftp_cmd_RETR},
+  {"RMD",  ftp_cmd_RMD},
+  {"RMDA", ftp_cmd_RMDA},
+  {"RNFR", ftp_cmd_RNFR},
+  {"RNTO", ftp_cmd_RNTO},
+  {"SIZE", ftp_cmd_SIZE},
+  {"DSIZ", ftp_cmd_DSIZ},
+  {"STOR", ftp_cmd_STOR},
+  {"SYST", ftp_cmd_SYST},
+  {"TYPE", ftp_cmd_TYPE},
+  {"USER", ftp_cmd_USER},
+  {"ABOR", ftp_cmd_ABOR},
+  {"ALLO", ftp_cmd_ALLO},
+  {"AVBL", ftp_cmd_AVBL},
+  {"FEAT", ftp_cmd_FEAT},
+  {"HELP", ftp_cmd_HELP},
+  {"MDTM", ftp_cmd_MDTM},
+  {"MODE", ftp_cmd_MODE},
+  {"OPTS", ftp_cmd_OPTS},
+  {"STAT", ftp_cmd_STAT},
+  {"STRU", ftp_cmd_STRU},
 
   // custom commands
-  {"KILL", ftp_cmd_KILL, 0},
-  {"MTRW", ftp_cmd_MTRW, 1},
-  {"AUTHID", ftp_cmd_AUTHID, 1},
-  {"COMP", ftp_cmd_COMP, 0},
-  {"SELF", ftp_cmd_SELF, 0},
-  {"SCHK", ftp_cmd_SELFCHK, 0},
-  {"CHMOD", ftp_cmd_CHMOD, 0},
-  {"UMASK", ftp_cmd_UMASK, 0},
-  {"SYMLINK", ftp_cmd_SYMLINK, 0},
-  {"RMDIR", ftp_cmd_RMDA, 0},
-  {"CPFR", ftp_cmd_CPFR, 0},
-  {"CPTO", ftp_cmd_CPTO, 0},
-  {"COPY", ftp_cmd_COPY, 0},
-  {"MOVE", ftp_cmd_MOVE, 0},
-  {"LOWER", ftp_cmd_LOWER, 0},
-  {"UPPER", ftp_cmd_UPPER, 0},
-  {"STOP", ftp_cmd_STOP, 0},
-  {"XQUOTA", ftp_cmd_XQUOTA, 0},
+  {"KILL", ftp_cmd_KILL},
+  {"MTRW", ftp_cmd_MTRW},
+  {"AUTHID", ftp_cmd_AUTHID},
+  {"SELF", ftp_cmd_SELF},
+  {"SCHK", ftp_cmd_SELFCHK},
+  {"CHMOD", ftp_cmd_CHMOD},
+  {"UMASK", ftp_cmd_UMASK},
+  {"SYMLINK", ftp_cmd_SYMLINK},
+  {"RMDIR", ftp_cmd_RMDA},
+  {"CPFR", ftp_cmd_CPFR},
+  {"CPTO", ftp_cmd_CPTO},
+  {"COPY", ftp_cmd_COPY},
+  {"MOVE", ftp_cmd_MOVE},
+  {"LOWER", ftp_cmd_LOWER},
+  {"UPPER", ftp_cmd_UPPER},
+  {"STOP", ftp_cmd_STOP},
+  {"XQUOTA", ftp_cmd_XQUOTA},
 
   // duplicates that ensure commands are 4 bytes long
-  {"XCUP", ftp_cmd_CDUP, 0},
-  {"XMKD", ftp_cmd_MKD, 0},
-  {"XPWD", ftp_cmd_PWD, 0},
-  {"XRMD", ftp_cmd_RMD, 0},
+  {"XCUP", ftp_cmd_CDUP},
+  {"XMKD", ftp_cmd_MKD},
+  {"XPWD", ftp_cmd_PWD},
+  {"XRMD", ftp_cmd_RMD},
 
   // not yet implemnted
-  {"XRCP", ftp_cmd_unavailable, 0},
-  {"XRSQ", ftp_cmd_unavailable, 0},
-  {"XSEM", ftp_cmd_unavailable, 0},
-  {"XSEN", ftp_cmd_unavailable, 0},
+  {"XRCP", ftp_cmd_unavailable},
+  {"XRSQ", ftp_cmd_unavailable},
+  {"XSEM", ftp_cmd_unavailable},
+  {"XSEN", ftp_cmd_unavailable},
 };
 
 
@@ -299,15 +297,9 @@ ftp_execute(ftp_env_t *env, char *line) {
       continue;
     }
 
-    if(commands[i].requires_kstuff) {
-      kstuff_autopause_command_received_required();
-    } else {
-      kstuff_autopause_command_received();
-    }
     return commands[i].func(env, arg);
   }
 
-  kstuff_autopause_command_received();
   return ftp_cmd_unknown(env, arg);
 }
 

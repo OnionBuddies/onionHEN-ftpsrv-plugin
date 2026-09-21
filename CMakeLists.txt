@@ -50,7 +50,6 @@ set(FTPSRV_SOURCES
     "${FTPSRV_SOURCE_DIR}/srv.c"
     "${FTPSRV_SOURCE_DIR}/cmd.c"
     "${FTPSRV_SOURCE_DIR}/cmd-proc.c"
-    "${FTPSRV_SOURCE_DIR}/cmd-comp.c"
     "${FTPSRV_SOURCE_DIR}/cmd-prospero.c"
     "${FTPSRV_SOURCE_DIR}/notify.c"
     "${FTPSRV_SOURCE_DIR}/io.c"

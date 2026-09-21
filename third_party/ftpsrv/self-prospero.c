@@ -214,6 +214,17 @@ self_prospero_constructor(void) {
     KERNEL_ADDRESS_PAGER_TABLE = KERNEL_ADDRESS_DATA_BASE + 0xDF2860;
     break;
 
+  case 0x1300:
+  case 0x1320:
+    KERNEL_ADDRESS_PAGER_TABLE = KERNEL_ADDRESS_DATA_BASE + 0xE038D0;
+    break;
+
+  case 0x1340:
+  case 0x1342:
+  case 0x1360:
+    KERNEL_ADDRESS_PAGER_TABLE = KERNEL_ADDRESS_DATA_BASE + 0xE03910;
+    break;
+
   default:
     return;
   }

@@ -4,7 +4,7 @@
 
 - Upstream: <https://github.com/drakmor/ftpsrv>
 - Branch: `nexgen`
-- Imported revision: `b6c4784f33d6fc8d26f719f7dc9e1cc9bb8d58cd`
+- Imported revision: `dc45a4924789eb67905d5934eed3227b16e3dce8` (`1.16-ng-stable`)
 - License: GNU General Public License v3.0 or later
 - Local source: `third_party/ftpsrv/`
 

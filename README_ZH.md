@@ -21,8 +21,10 @@ descriptor，管理进程生命周期，并在插件停止后自动清理它注�
 - 跟随 PS5 系统语言（`zh-Hans` / `en`）实时切换中英双语，无需重启插件
 - 持久保存 `enabled` 和 `port` 配置
 - 通过 OnionHEN 插件管理器支持启动、停止、重载、删除和休息模式恢复
-- 保留上游 `ftpsrv` 的 `KILL`、`SELF`、`SCHK`、`MTRW`、`AUTHID` 等命令
-  （具体取决于固件支持）
+- 保留上游 `ftpsrv` 的 `KILL`、`SELF`、`SCHK`、`MTRW`、`AUTHID`、
+  `LOWER`、`UPPER` 等命令（具体取决于固件支持）
+- PS5 虚拟 `/proc` 目录，可列出进程、读取详情，并用 `DELE /proc/<pid>` 结束进程
+- SELF 即时解密支持到固件 13.60
 - 不使用压缩包或自定义容器，插件元数据直接嵌入 ELF
 
 插件进程会自动启动，以便发布动态设置页；FTP 监听器默认开启，监听 TCP `1337`。

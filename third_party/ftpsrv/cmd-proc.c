@@ -36,7 +36,6 @@ along with this program; see the file COPYING. If not, see
 
 #include "cmd-proc.h"
 #include "io.h"
-#include "kstuff_autopause.h"
 
 #ifndef FTP_PROC_OUTBUF_SIZE
 #define FTP_PROC_OUTBUF_SIZE (256 * 1024)
@@ -163,7 +162,6 @@ ftp_proc_xfer_start(ftp_env_t *env, ftp_proc_xfer_t *x) {
     return err < 0 ? -1 : 1;
   }
 
-  kstuff_autopause_active_begin();
   return 0;
 }
 
@@ -276,8 +274,6 @@ ftp_proc_xfer_finish(ftp_env_t *env, ftp_proc_xfer_t *x) {
   }
 
   ftp_proc_xfer_release(x);
-  kstuff_autopause_active_end();
-
   if(x->failed) {
     return 0;
   }

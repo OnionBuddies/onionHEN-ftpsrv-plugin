@@ -45,7 +45,6 @@ along with this program; see the file COPYING. If not, see
 #include "cmd-proc.h"
 #endif
 #include "io.h"
-#include "kstuff_autopause.h"
 #include "log.h"
 #include "notify.h"
 #include "self.h"
@@ -65,38 +64,6 @@ along with this program; see the file COPYING. If not, see
 // #define IO_USE_SENDFILE  // Disabled. Speed x2 down ?!
 
 typedef struct ftp_xfer_buf ftp_xfer_buf_t;
-
-#if defined(IO_USE_AIO)
-static int
-ftp_cmd_RETR_fd_aio(ftp_env_t *env, int fd, off_t off, size_t remaining);
-
-static void
-ftp_free_owned_buffers(void *buffers[], const int owned[], int count) {
-  int i;
-
-  for(i=0; i<count; i++) {
-    if(owned[i] && buffers[i]) {
-      free(buffers[i]);
-    }
-  }
-}
-
-static int
-ftp_aio_find_reusable_slot(io_aio_slot_t slots[], int count) {
-  int i;
-
-  for(i=0; i<count; i++) {
-    if(!slots[i].in_flight) {
-      slots[i].ready = 0;
-      slots[i].result_len = 0;
-      return i;
-    }
-  }
-
-  return -1;
-}
-#endif
-
 
 /**
  * Create a string representation of a file mode.
@@ -444,7 +411,7 @@ ftp_copy_ascii_in(ftp_env_t *env, int fd_out, off_t *out_off) {
         }
         // Emit the swallowed \r
         if(out_len < outcap) {
-          outbuf[out_len++] = '\r';
+          outbuf[out_len++] = '\r'; 
         }
         prev_cr = 0;
       }
@@ -884,7 +851,7 @@ ftp_format_list_time(time_t t, char *buf, size_t bufsize) {
   struct tm tm;
   time_t now;
 
-  // LIST output is typically server-local time (unlike MLSD's UTC "modify").
+  // LIST output is typically server-local time (unlike MLSD's UTC "modify"). 
   static const char *mon[] = {"Jan","Feb","Mar","Apr","May","Jun",
                               "Jul","Aug","Sep","Oct","Nov","Dec"};
 
@@ -893,7 +860,7 @@ ftp_format_list_time(time_t t, char *buf, size_t bufsize) {
   }
 
   if(!localtime_r(&t, &tm)) {
-    // Fallback to a fixed epoch-ish timestamp rather than garbage.
+    // Fallback to a fixed epoch-ish timestamp rather than garbage. 
     (void)snprintf(buf, bufsize, "Jan  1  1970");
     return 0;
   }
@@ -1465,7 +1432,6 @@ ftp_list_xfer_start(ftp_env_t *env, DIR *dir, ftp_xfer_buf_t *x) {
     return open_err;
   }
 
-  kstuff_autopause_active_begin();
   return 0;
 }
 
@@ -1491,7 +1457,6 @@ ftp_list_xfer_finish(ftp_env_t *env, DIR *dir, ftp_xfer_buf_t *x) {
   }
 
   ftp_xfer_buf_release(x);
-  kstuff_autopause_active_end();
 
   if(x->failed) {
     return 0;
@@ -2965,7 +2930,7 @@ ftp_cmd_NLST(ftp_env_t *env, const char *arg) {
       if(x.failed) {
         break;
       }
-      // shouldn't happen; but if it does, skip entry
+      // shouldn't happen; but if it does, skip entry 
       continue;
     }
 
@@ -2985,7 +2950,7 @@ ftp_cmd_NLST(ftp_env_t *env, const char *arg) {
     (void)ftp_perror(env);
     x.failed = 1;
   }
-
+  
   err = ftp_list_xfer_finish(env, ctx.dir, &x);
   ftp_list_ctx_free(&ctx);
   return err;
@@ -3109,7 +3074,7 @@ ftp_cmd_MLSD(ftp_env_t *env, const char *arg) {
     (void)ftp_perror(env);
     x.failed = 1;
   }
-
+  
   err = ftp_list_xfer_finish(env, ctx.dir, &x);
   ftp_list_ctx_free(&ctx);
   return err;
@@ -3318,7 +3283,6 @@ ftp_cmd_RETR_fd(ftp_env_t *env, int fd) {
   struct stat st;
   size_t remaining;
   int err = 0;
-  int active = 0;
 
   if(env->type == 'A' && off != 0 && is_rest) {
     return ftp_active_printf(env, "504 REST not supported in ASCII mode\r\n");
@@ -3341,8 +3305,6 @@ ftp_cmd_RETR_fd(ftp_env_t *env, int fd) {
   if(open_err) {
     return open_err < 0 ? open_err : 0;
   }
-  kstuff_autopause_active_begin();
-  active = 1;
 
   if(env->type == 'A') {
     if(ftp_copy_ascii_out(env, fd)) {
@@ -3351,9 +3313,6 @@ ftp_cmd_RETR_fd(ftp_env_t *env, int fd) {
       goto out;
     }
   } else if(remaining) {
-#if defined(IO_USE_AIO)
-    return ftp_cmd_RETR_fd_aio(env, fd, off, remaining);
-#else
     if(remaining < 1460) {  // Typical MSS size
 #ifdef TCP_NODELAY
       (void)setsockopt(env->data_fd, IPPROTO_TCP, TCP_NODELAY,  &(int){1},
@@ -3387,7 +3346,6 @@ ftp_cmd_RETR_fd(ftp_env_t *env, int fd) {
       goto out;
     }
 #endif
-#endif
   }
 
   if(ftp_data_close(env)) {
@@ -3398,9 +3356,6 @@ ftp_cmd_RETR_fd(ftp_env_t *env, int fd) {
   err = ftp_active_printf(env, "226 Transfer completed\r\n");
 
 out:
-  if(active) {
-    kstuff_autopause_active_end();
-  }
   return err;
 }
 
@@ -3421,9 +3376,7 @@ ftp_cmd_RETR_self2elf(ftp_env_t *env, int fd) {
     fclose(tmpf);
     return -1;
   }
-  kstuff_autopause_required_begin();
   if(self_extract_elf_ex(fd, fileno(tmpf), env->self_verify)) {
-    kstuff_autopause_required_end();
     if(errno != EBADMSG) {
       err = ftp_perror(env);
       fclose(tmpf);
@@ -3433,8 +3386,6 @@ ftp_cmd_RETR_self2elf(ftp_env_t *env, int fd) {
       fclose(tmpf);
       return -1;
     }
-  } else {
-    kstuff_autopause_required_end();
   }
 
   rewind(tmpf);
@@ -3443,282 +3394,6 @@ ftp_cmd_RETR_self2elf(ftp_env_t *env, int fd) {
 
   return err;
 }
-
-#if defined(IO_USE_AIO)
-static int
-ftp_cmd_RETR_fd_aio(ftp_env_t *env, int fd, off_t off, size_t remaining) {
-  void *buffers[IO_AIO_READ_QUEUE_DEPTH] = {0};
-  int buffer_owned[IO_AIO_READ_QUEUE_DEPTH] = {0};
-  io_aio_slot_t slots[IO_AIO_READ_QUEUE_DEPTH];
-  size_t bufsize = env->xfer_buf_size;
-  int head = 0;
-  int queued = 0;
-  off_t next_off = off;
-  ssize_t len = 0;
-  int err = 0;
-  int i;
-
-  memset(slots, 0, sizeof(slots));
-
-  if(io_aio_require() != 0) {
-    err = ftp_perror(env);
-    (void)ftp_data_close(env);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  if(!bufsize || bufsize < IO_AIO_CHUNK_SIZE) {
-    bufsize = IO_AIO_CHUNK_SIZE;
-  }
-
-  if(env->xfer_buf && env->xfer_buf_size >= bufsize) {
-    buffers[0] = env->xfer_buf;
-  } else {
-    buffers[0] = malloc(bufsize);
-    buffer_owned[0] = 1;
-  }
-
-  if(!buffers[0]) {
-    err = ftp_perror(env);
-    (void)ftp_data_close(env);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  for(i=1; i<IO_AIO_READ_QUEUE_DEPTH; i++) {
-    buffers[i] = malloc(bufsize);
-    buffer_owned[i] = 1;
-    if(!buffers[i]) {
-      err = ftp_perror(env);
-      (void)ftp_data_close(env);
-      ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_READ_QUEUE_DEPTH);
-      kstuff_autopause_active_end();
-      return err;
-    }
-  }
-
-  while(queued < IO_AIO_READ_QUEUE_DEPTH && remaining > 0) {
-    size_t chunk = remaining < bufsize ? remaining : bufsize;
-    int slot_idx = (head + queued) % IO_AIO_READ_QUEUE_DEPTH;
-
-    if(io_aio_read_submit(&slots[slot_idx], fd, buffers[slot_idx], chunk,
-                          next_off) != 0) {
-      err = ftp_perror(env);
-      (void)ftp_data_close(env);
-      ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_READ_QUEUE_DEPTH);
-      kstuff_autopause_active_end();
-      return err;
-    }
-
-    next_off += (off_t)chunk;
-    remaining -= chunk;
-    queued++;
-  }
-
-  while(queued > 0) {
-    io_aio_slot_t *slot = &slots[head];
-
-    if(slot->ready) {
-      len = slot->result_len;
-      if(len <= 0 || io_nwrite(env->data_fd, buffers[head], (size_t)len)) {
-        err = ftp_data_xfer_error_reply(env);
-        break;
-      }
-
-      slot->ready = 0;
-      slot->result_len = 0;
-      queued--;
-      head = (head + 1) % IO_AIO_READ_QUEUE_DEPTH;
-
-      if(remaining > 0) {
-        size_t chunk = remaining < bufsize ? remaining : bufsize;
-        int slot_idx = (head + queued) % IO_AIO_READ_QUEUE_DEPTH;
-
-        if(io_aio_read_submit(&slots[slot_idx], fd, buffers[slot_idx], chunk,
-                              next_off) != 0) {
-          err = ftp_perror(env);
-          break;
-        }
-
-        next_off += (off_t)chunk;
-        remaining -= chunk;
-        queued++;
-      }
-
-      continue;
-    }
-
-    if(!slot->in_flight) {
-      errno = EIO;
-      err = ftp_perror(env);
-      break;
-    }
-
-    i = io_aio_wait_any(slots, IO_AIO_READ_QUEUE_DEPTH);
-    if(i < 0) {
-      err = ftp_perror(env);
-      break;
-    }
-    if(i == 0) {
-      errno = EIO;
-      err = ftp_perror(env);
-      break;
-    }
-  }
-
-  if(io_aio_drain(slots, IO_AIO_READ_QUEUE_DEPTH) != 0 && !err) {
-    err = ftp_perror(env);
-  }
-
-  if(err) {
-    (void)ftp_data_close(env);
-    ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_READ_QUEUE_DEPTH);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  if(ftp_data_close(env)) {
-    err = ftp_perror(env);
-  } else {
-    err = ftp_active_printf(env, "226 Transfer completed\r\n");
-  }
-
-  ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_READ_QUEUE_DEPTH);
-  kstuff_autopause_active_end();
-  return err;
-}
-
-static int
-ftp_cmd_STOR_binary_aio(ftp_env_t *env, int fd, void *readbuf, size_t bufsize,
-                        int free_buf, off_t off) {
-  void *buffers[IO_AIO_WRITE_QUEUE_DEPTH] = {0};
-  int buffer_owned[IO_AIO_WRITE_QUEUE_DEPTH] = {0};
-  io_aio_slot_t slots[IO_AIO_WRITE_QUEUE_DEPTH];
-  size_t chunk_size = bufsize;
-  int slot_idx;
-  ssize_t len = 0;
-  int err = 0;
-  int i;
-
-  memset(slots, 0, sizeof(slots));
-
-  if(io_aio_require() != 0) {
-    err = ftp_perror(env);
-    ftp_data_close(env);
-    close(fd);
-    if(free_buf && readbuf) {
-      free(readbuf);
-    }
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  if(chunk_size < IO_AIO_CHUNK_SIZE) {
-    chunk_size = IO_AIO_CHUNK_SIZE;
-  }
-
-  if(readbuf && bufsize >= chunk_size) {
-    buffers[0] = readbuf;
-    buffer_owned[0] = free_buf;
-  } else {
-    if(free_buf && readbuf) {
-      free(readbuf);
-      readbuf = NULL;
-      free_buf = 0;
-    }
-    buffers[0] = malloc(chunk_size);
-    buffer_owned[0] = 1;
-  }
-
-  if(!buffers[0]) {
-    err = ftp_perror(env);
-    ftp_data_close(env);
-    close(fd);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  for(i=1; i<IO_AIO_WRITE_QUEUE_DEPTH; i++) {
-    buffers[i] = malloc(chunk_size);
-    buffer_owned[i] = 1;
-    if(!buffers[i]) {
-      err = ftp_perror(env);
-      ftp_data_close(env);
-      close(fd);
-      ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_WRITE_QUEUE_DEPTH);
-      kstuff_autopause_active_end();
-      return err;
-    }
-  }
-
-  for(;;) {
-    slot_idx = ftp_aio_find_reusable_slot(slots, IO_AIO_WRITE_QUEUE_DEPTH);
-    if(slot_idx < 0) {
-      i = io_aio_wait_any(slots, IO_AIO_WRITE_QUEUE_DEPTH);
-      if(i < 0) {
-        err = ftp_perror(env);
-        break;
-      }
-      if(i == 0) {
-        errno = EIO;
-        err = ftp_perror(env);
-        break;
-      }
-      continue;
-    }
-
-    len = ftp_data_read(env, buffers[slot_idx], chunk_size);
-    if(len < 0) {
-      err = ftp_data_xfer_error_reply(env);
-      break;
-    }
-    if(len == 0) {
-      break;
-    }
-
-    if(io_aio_write_submit(&slots[slot_idx], fd, buffers[slot_idx], (size_t)len,
-                           off) != 0) {
-      err = ftp_perror(env);
-      break;
-    }
-    off += len;
-  }
-
-  if(io_aio_drain(slots, IO_AIO_WRITE_QUEUE_DEPTH) != 0 && !err) {
-    err = ftp_perror(env);
-  }
-
-  if(err) {
-    ftp_data_close(env);
-    close(fd);
-    ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_WRITE_QUEUE_DEPTH);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  if(ftruncate(fd, off)) {
-    err = ftp_perror(env);
-    ftp_data_close(env);
-    close(fd);
-    ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_WRITE_QUEUE_DEPTH);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  close(fd);
-  if(ftp_data_close(env)) {
-    err = ftp_perror(env);
-    ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_WRITE_QUEUE_DEPTH);
-    kstuff_autopause_active_end();
-    return err;
-  }
-
-  ftp_free_owned_buffers(buffers, buffer_owned, IO_AIO_WRITE_QUEUE_DEPTH);
-  kstuff_autopause_active_end();
-  return ftp_active_printf(env, "226 Data transfer complete\r\n");
-}
-#endif
-
 
 /**
  * Retreive data from a given file.
@@ -6344,7 +6019,7 @@ ftp_cmd_SIZE(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "213 %"  PRIu64 "\r\n", st.st_size);
 }
 
-
+ 
 /**
  * Store recieved data in a given file.
  **/
@@ -6356,7 +6031,6 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
   void *readbuf = env->xfer_buf;
   size_t bufsize = env->xfer_buf_size;
   int err = 0;
-  int active = 0;
   int free_buf = 0;
   ssize_t len = 0;
   struct stat st;
@@ -6445,18 +6119,10 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
     close(fd);
     return open_err < 0 ? open_err : 0;
   }
-  kstuff_autopause_active_begin();
-  active = 1;
 
   if(!readbuf || !bufsize) {
-    size_t alloc_size = IO_COPY_BUFSIZE;
-#if defined(IO_USE_AIO)
-    if(env->type != 'A' && alloc_size < IO_AIO_CHUNK_SIZE) {
-      alloc_size = IO_AIO_CHUNK_SIZE;
-    }
-#endif
-    readbuf = malloc(alloc_size);
-    bufsize = alloc_size;
+    readbuf = malloc(IO_COPY_BUFSIZE);
+    bufsize = IO_COPY_BUFSIZE;
     free_buf = 1;
     if(!readbuf) {
       err = ftp_perror(env);
@@ -6477,9 +6143,6 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
       goto out;
     }
   } else {
-#if defined(IO_USE_AIO)
-    return ftp_cmd_STOR_binary_aio(env, fd, readbuf, bufsize, free_buf, off);
-#else
     while((len = ftp_data_read(env, readbuf, bufsize)) > 0) {
       if(io_nwrite(fd, readbuf, (size_t)len)) {
         err = ftp_perror(env);
@@ -6492,7 +6155,6 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
       }
       off += len;
     }
-#endif
   }
 
   if(env->type != 'A' && len < 0) {
@@ -6525,9 +6187,6 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
   err = ftp_active_printf(env, "226 Data transfer complete\r\n");
 
 out:
-  if(active) {
-    kstuff_autopause_active_end();
-  }
   return err;
 }
 
@@ -6658,7 +6317,6 @@ ftp_cmd_FEAT(ftp_env_t *env, const char *arg) {
                            " EPRT\r\n"
                            " KILL\r\n"
                            " MTRW\r\n"
-                           " COMP\r\n"
                            " STOP\r\n"
                            " SELF\r\n"
                            " SCHK\r\n"
@@ -6674,7 +6332,6 @@ ftp_cmd_FEAT(ftp_env_t *env, const char *arg) {
                            " SITE UPPER\r\n"
                            " SITE STOP\r\n"
                            " SITE AUTHID\r\n"
-                           " SITE COMP\r\n"
                            " UTF8\r\n"
                            " REST STREAM\r\n"
                            "211 End\r\n");
@@ -6868,9 +6525,9 @@ ftp_cmd_HELP(ftp_env_t *env, const char *arg) {
                            "214-Commands:\r\n"
                            " USER PASS PWD CWD CDUP TYPE SIZE DSIZ MDTM AVBL\r\n"
                            " LIST NLST MLSD MLST RETR STOR APPE\r\n"
-                           " DELE RMD RMDA MKD RNFR RNTO REST LOWER UPPER STOP XQUOTA COMP\r\n"
+                           " DELE RMD RMDA MKD RNFR RNTO REST LOWER UPPER STOP XQUOTA\r\n"
                            " PASV PORT EPSV EPRT SYST NOOP QUIT\r\n"
-                           " SITE CHMOD UMASK SYMLINK RMDIR CPFR CPTO COPY MOVE LOWER UPPER STOP AUTHID COMP\r\n"
+                           " SITE CHMOD UMASK SYMLINK RMDIR CPFR CPTO COPY MOVE LOWER UPPER STOP AUTHID\r\n"
                            "214 End\r\n");
 }
 

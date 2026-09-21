@@ -25,8 +25,10 @@ owns its process lifecycle, and removes its UI contribution when it stops.
 - Persistent `enabled` and `port` settings
 - Graceful start, stop, reload, deletion, and rest-mode process recovery through
   the OnionHEN plugin manager
-- Upstream `ftpsrv` commands including `KILL`, `SELF`, `SCHK`, `MTRW`, and
-  `AUTHID` where the firmware supports them
+- Upstream `ftpsrv` commands including `KILL`, `SELF`, `SCHK`, `MTRW`,
+  `AUTHID`, `LOWER`, and `UPPER` where the firmware supports them
+- PS5 virtual `/proc` listing, process details, and `DELE /proc/<pid>`
+- On-the-fly SELF decryption through firmware 13.60
 - No package container or extraction step; metadata is embedded in the ELF
 
 The plugin process starts automatically so it can publish its settings page.
